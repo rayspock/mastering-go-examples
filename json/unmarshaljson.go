@@ -26,8 +26,8 @@ func (e *Event) UnmarshalJSON(data []byte) error {
 		e.Data = new(Customer)
 	}
 
-	type eventAlias Event
-	return json.Unmarshal(data, (*eventAlias)(e))
+	type aka Event
+	return json.Unmarshal(data, (*aka)(e))
 }
 
 type Customer struct {
@@ -47,21 +47,16 @@ func (p *Payment) String() string {
 }
 
 func main() {
-	bPaymentEvent := []byte(`{"resource_type":"payment","action":"confirmed","data":{"amount":100}}`)
-	var payment Event
-	err := json.Unmarshal(bPaymentEvent, &payment)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("payment event: %+v\n", payment)
+	var jsonBlob = []byte(`[
+	{"resource_type":"payment","action":"confirmed","data":{"amount":100}},
+	{"resource_type":"customer","action":"created","data":{"name":"john"}}
+]`)
 
-	bCustomerEvent := []byte(`{"resource_type":"customer","action":"created","data":{"name":"john"}}`)
-	var customer Event
-	err = json.Unmarshal(bCustomerEvent, &customer)
+	var events []Event
+	err := json.Unmarshal(jsonBlob, &events)
 	if err != nil {
-		fmt.Println(err)
-		return
+		fmt.Println("error:", err)
 	}
-	fmt.Printf("customer event: %+v\n", customer)
+	fmt.Printf("%+v", events)
+	// output: [{ResourceType:payment Action:confirmed Data:{Amount:100}} {ResourceType:customer Action:created Data:{Name:john}}]
 }
