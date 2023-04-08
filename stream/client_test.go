@@ -19,7 +19,7 @@ import (
 
 const (
 	// TestServerPort to use the port that is not in use on the local machine.
-	TestServerPort = 50124
+	TestServerPort = 50432
 )
 
 func TestHttpClientSuite(t *testing.T) {

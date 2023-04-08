@@ -38,6 +38,7 @@ func Download(client HTTPClient, url string, bufferSize int64, send func([]byte)
 		if err != nil {
 			return err
 		}
+		// send the data to the send function.
 		send(buff[:bytesRead])
 	}
 	return nil
