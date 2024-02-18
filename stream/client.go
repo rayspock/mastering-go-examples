@@ -10,8 +10,8 @@ type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// Download downloads a file from a given url and send the data to the send function.
-func Download(client HTTPClient, url string, bufferSize int64, send func([]byte)) error {
+// ReliableDownload downloads a file from a given url and send the data to the send function.
+func ReliableDownload(client HTTPClient, url string, bufferSize int64, send func([]byte)) error {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
@@ -34,6 +34,34 @@ func Download(client HTTPClient, url string, bufferSize int64, send func([]byte)
 			if bytesRead <= 0 {
 				break
 			}
+		}
+		if err != nil {
+			return err
+		}
+		// send the data to the send function.
+		send(buff[:bytesRead])
+	}
+	return nil
+}
+
+func NaughtyDownload(client HTTPClient, url string, bufferSize int64, send func([]byte)) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	buff := make([]byte, bufferSize)
+	for {
+		var bytesRead int
+		bytesRead, err = res.Body.Read(buff)
+		if err == io.EOF {
+			break
 		}
 		if err != nil {
 			return err

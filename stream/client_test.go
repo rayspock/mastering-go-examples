@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"syscall"
 	"testing"
+	"time"
 )
 
 const (
@@ -39,13 +40,15 @@ func (s *HttpClientSuite) TearDownSuite() {
 	p.Signal(syscall.SIGINT)
 }
 
-func (s *HttpClientSuite) TestDownloadFileWithoutCorruptionWithHttpServer() {
+func (s *HttpClientSuite) TestReliableDownloadWithHttpServer() {
 	// We run it several times to make sure the result is what we expect each time as we experience an arbitrary result
 	// if we didn't check if there was a last chunk of data returned by the http body reader, even though the read
 	// return err == EOF
 	for i := 0; i < 10; i++ {
 		s.T().Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
+			// For demonstration purposes, we sleep for 2 seconds to make sure asciinema can capture the entire output.
+			time.Sleep(2 * time.Second)
 			expectedBytes := []byte("some dummy data to test download")
 			var dataRcv bytes.Buffer
 			w := bufio.NewWriter(&dataRcv)
@@ -54,7 +57,7 @@ func (s *HttpClientSuite) TestDownloadFileWithoutCorruptionWithHttpServer() {
 				_, err := w.Write(b)
 				assert.NoError(t, err)
 			}
-			err := stream.Download(&http.Client{}, fmt.Sprintf("http://localhost:%d/file", TestServerPort), bufferSize, send)
+			err := stream.ReliableDownload(&http.Client{}, fmt.Sprintf("http://localhost:%d/file", TestServerPort), bufferSize, send)
 			assert.NoError(t, err)
 			err = w.Flush()
 			assert.NoError(t, err)
@@ -63,11 +66,13 @@ func (s *HttpClientSuite) TestDownloadFileWithoutCorruptionWithHttpServer() {
 	}
 }
 
-func (s *HttpClientSuite) TestDownloadFileWithoutCorruptionWithMockClient() {
+func (s *HttpClientSuite) TestReliableDownloadWithMockClient() {
 	// It is idempotent if we do a mock client test.
 	for i := 0; i < 10; i++ {
 		s.T().Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
+			// For demonstration purposes, we sleep for 2 seconds to make sure asciinema can capture the entire output.
+			time.Sleep(2 * time.Second)
 			expectedBytes := []byte("some dummy data")
 			mockClient := &mockHTTPClient{
 				File: expectedBytes,
@@ -79,12 +84,66 @@ func (s *HttpClientSuite) TestDownloadFileWithoutCorruptionWithMockClient() {
 				_, err := w.Write(b)
 				assert.NoError(t, err)
 			}
-			err := stream.Download(mockClient, "", bufferSize, send)
+			err := stream.ReliableDownload(mockClient, "", bufferSize, send)
 			assert.NoError(t, err)
 			err = w.Flush()
 			assert.NoError(t, err)
 			assert.Equal(t, expectedBytes, dataRcv.Bytes())
 
+		})
+	}
+}
+
+func (s *HttpClientSuite) TestNaughtyDownloadWithMockClient() {
+	// It is idempotent if we do a mock client test.
+	for i := 0; i < 10; i++ {
+		s.T().Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+			// For demonstration purposes, we sleep for 2 seconds to make sure asciinema can capture the entire output.
+			time.Sleep(2 * time.Second)
+			expectedBytes := []byte("some dummy data")
+			mockClient := &mockHTTPClient{
+				File: expectedBytes,
+			}
+			var dataRcv bytes.Buffer
+			w := bufio.NewWriter(&dataRcv)
+			bufferSize := int64(5)
+			send := func(b []byte) {
+				_, err := w.Write(b)
+				assert.NoError(t, err)
+			}
+			err := stream.NaughtyDownload(mockClient, "", bufferSize, send)
+			assert.NoError(t, err)
+			err = w.Flush()
+			assert.NoError(t, err)
+			assert.Equal(t, expectedBytes, dataRcv.Bytes())
+
+		})
+	}
+}
+
+func (s *HttpClientSuite) TestNaughtyDownloadWithHttpServer() {
+	// We run it several times to make sure the result is what we expect each time as we experience an arbitrary result
+	// if we didn't check if there was a last chunk of data returned by the http body reader, even though the read
+	// return err == EOF
+	for i := 0; i < 10; i++ {
+		s.T().Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+			// For demonstration purposes, we sleep for 2 seconds to make sure asciinema can capture the entire output.
+			time.Sleep(2 * time.Second)
+			expectedBytes := []byte("some dummy data to test download")
+			var dataRcv bytes.Buffer
+			w := bufio.NewWriter(&dataRcv)
+			bufferSize := int64(5)
+			send := func(b []byte) {
+				_, err := w.Write(b)
+				assert.NoError(t, err)
+			}
+			err := stream.NaughtyDownload(&http.Client{}, fmt.Sprintf("http://localhost:%d/file", TestServerPort), bufferSize, send)
+			assert.NoError(t, err)
+			err = w.Flush()
+			assert.NoError(t, err)
+			assert.Equal(t, expectedBytes, dataRcv.Bytes())
 		})
 	}
 }
